@@ -86,6 +86,7 @@ const errorMiddleWare = (err, req, res, next) => {
 const configureRouter = (app) => {
   app.use(router);
   app.use(errorMiddleWare);
+  return app;
 };
 
 module.exports = { configureRouter };

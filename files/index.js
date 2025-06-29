@@ -2,6 +2,7 @@ const express = require("express");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const multer = require("multer");
 const multerS3 = require("multer-s3");
+const { SSMClient, GetParameterCommand } = require("@aws-sdk/client-ssm");
 //const streamifier = require("streamifier");
 
 // setup router
@@ -34,9 +35,33 @@ const upload = multer({
 });
 
 // add routes
+
+//test-route
+router.get("/", (req, res) => {
+  res.send("Working!!!");
+});
+
+// test route - getaccesskeyparam
+router.get("/get-access-key-param", async (req, res) => {
+  const ssmClient = new SSMClient({ region: "ap-south-1" });
+
+  const params = {
+    Name: "S3_ACCESS_KEY",
+    WithDecryption: true,
+  };
+
+  const command = new GetParameterCommand(params);
+
+  const data = await ssmClient.send(command);
+  res.send(data);
+});
+
+//get max allowed file size
 router.get("/max-file-size", (req, res) => {
   res.send(process.env.MAX_FILE_SIZE || null);
 });
+
+// upload files to s3
 router.post("/upload-file", upload.array("file", 5), async (req, res) => {
   // multer is setup with sulter-s3 as middelware which takes care of the uploading in its function call. Nothing to do here
   // This function is only called on success,

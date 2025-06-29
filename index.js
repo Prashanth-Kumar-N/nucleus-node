@@ -15,5 +15,5 @@ const { configureRouter } = require("./files");
 configureRouter(app);
 
 app.listen(process.env.PORT || 3001, () =>
-  console.log(`Listening on port 3001`)
+  console.log(`Listening on port ${process.env.PORT}`)
 );

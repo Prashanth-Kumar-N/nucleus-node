@@ -13,11 +13,37 @@ const {
 const router = new express.Router();
 
 // setup s3 client
+
+// getting access keys tore in Parameter store in AWS
+// https://ap-south-1.console.aws.amazon.com/systems-manager/parameters/?region=ap-south-1&tab=Table
+
+const getAccessKeys = async () => {
+  const ssmClient = new SSMClient({ region: "ap-south-1" });
+  const params = {
+    Names: ["S3_ACCESS_KEY", "S3_SECRET_ACCESS_KEY"],
+    WithDecryption: true,
+  };
+  const command = new GetParametersCommand(params);
+  const paramsData = await ssmClient.send(command);
+  const aws_params = {};
+  paramsData.Parameters.forEach((param) => {
+    process.env[param.Name] = param.Value;
+    aws_params[param.Name] = param.Value;
+  });
+  return aws_params;
+};
+
+const paramsData = getAccessKeys();
+
+// Using the fetched params to configure S3Client
+
+console.log("from-function:", paramsData);
+console.log("from-process:", process.env.S3_ACCESS_KEY);
 const s3Client = new S3Client({
   region: process.env.AWS_S3_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_S3_ACCESS_KEY,
-    secretAccessKey: process.env.AWS_S3_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.S3_ACCESS_KEY,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
   },
 });
 
@@ -47,16 +73,6 @@ router.get("/", (req, res) => {
 
 // test route - getaccesskeyparam
 router.get("/get-access-key-param", async (req, res) => {
-  const ssmClient = new SSMClient({ region: "ap-south-1" });
-
-  const params = {
-    Names: ["S3_ACCESS_KEY", "S3_SECRET_ACCESS_KEY"],
-    WithDecryption: true,
-  };
-
-  const command = new GetParametersCommand(params);
-
-  const data = await ssmClient.send(command);
   res.send(data);
 });
 

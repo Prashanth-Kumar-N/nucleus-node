@@ -33,7 +33,7 @@ const getAccessKeys = async () => {
   return aws_params;
 };
 
-const paramsData = getAccessKeys();
+const paramsData = await getAccessKeys();
 
 // Using the fetched params to configure S3Client
 

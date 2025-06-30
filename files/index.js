@@ -12,6 +12,10 @@ const {
 // setup router
 const router = new express.Router();
 
+router.get("/", (req, res) => {
+  res.send("Working!!!");
+});
+
 // variable to store aws params
 let aws_params = {};
 

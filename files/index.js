@@ -12,6 +12,15 @@ const {
 // setup router
 const router = new express.Router();
 
+// variable to store aws params
+let aws_params = {};
+
+//variable for s3Client
+let s3Client = null;
+
+//variable to setup multer
+let upload = null;
+
 // setup s3 client
 
 // getting access keys tore in Parameter store in AWS
@@ -25,7 +34,6 @@ const getAccessKeys = async () => {
   };
   const command = new GetParametersCommand(params);
   const paramsData = await ssmClient.send(command);
-  const aws_params = {};
   paramsData.Parameters.forEach((param) => {
     process.env[param.Name] = param.Value;
     aws_params[param.Name] = param.Value;
@@ -33,62 +41,65 @@ const getAccessKeys = async () => {
   return aws_params;
 };
 
-const paramsData = await getAccessKeys();
-
 // Using the fetched params to configure S3Client
+const setupS3Client = () => {
+  console.log("from-function:", aws_params);
+  console.log("from-process:", process.env.S3_ACCESS_KEY);
 
-console.log("from-function:", paramsData);
-console.log("from-process:", process.env.S3_ACCESS_KEY);
-const s3Client = new S3Client({
-  region: process.env.AWS_S3_REGION,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY,
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
-  },
-});
+  s3Client = new S3Client({
+    region: process.env.AWS_S3_REGION,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+    },
+  });
+};
 
 //setup multer for S3
-const upload = multer({
-  storage: multerS3({
-    s3: s3Client,
-    bucket: process.env.AWS_S3_BUCKETNAME,
-    metadata: function (req, file, cb) {
-      cb(null, { fieldName: file.fieldname });
+const setupMulter = () => {
+  upload = multer({
+    storage: multerS3({
+      s3: s3Client,
+      bucket: process.env.AWS_S3_BUCKETNAME,
+      metadata: function (req, file, cb) {
+        cb(null, { fieldName: file.fieldname });
+      },
+      key: function (req, file, cb) {
+        cb(null, `${process.env.AWS_S3_FILES_FOLDER}/${file.originalname}`);
+      },
+    }),
+    limits: {
+      fileSize: 1024 * 1024 * Number(process.env.MAX_FILE_SIZE), // Max file size in MB
     },
-    key: function (req, file, cb) {
-      cb(null, `${process.env.AWS_S3_FILES_FOLDER}/${file.originalname}`);
-    },
-  }),
-  limits: {
-    fileSize: 1024 * 1024 * Number(process.env.MAX_FILE_SIZE), // Max file size in MB
-  },
-});
+  });
+};
 
 // add routes
+const setupFilesRoutes = () => {
+  router.get("/", (req, res) => {
+    res.send("Working!!!");
+  });
 
+  // test route - getaccesskeyparam
+  router.get("/get-access-key-param", async (req, res) => {
+    res.send(data);
+  });
+
+  //get max allowed file size
+  router.get("/max-file-size", (req, res) => {
+    res.send(process.env.MAX_FILE_SIZE || null);
+  });
+
+  // upload files to s3
+  router.post("/upload-file", upload.array("file", 5), async (req, res) => {
+    // multer is setup with sulter-s3 as middelware which takes care of the uploading in its function call. Nothing to do here
+    // This function is only called on success,
+    // Error is called through an error middleware we  setup below
+
+    res.send(`Successfully uploaded ${req.files.length} files`);
+  });
+};
 //test-route
-router.get("/", (req, res) => {
-  res.send("Working!!!");
-});
-
-// test route - getaccesskeyparam
-router.get("/get-access-key-param", async (req, res) => {
-  res.send(data);
-});
-
-//get max allowed file size
-router.get("/max-file-size", (req, res) => {
-  res.send(process.env.MAX_FILE_SIZE || null);
-});
-
-// upload files to s3
-router.post("/upload-file", upload.array("file", 5), async (req, res) => {
-  // multer is setup with sulter-s3 as middelware which takes care of the uploading in its function call. Nothing to do here
-  // This function is only called on success,
-  // Error is called through an error middleware we  setup below
-
-  res.send(`Successfully uploaded ${req.files.length} files`);
-});
 
 //setup error middleware which will catch all the errors middlware throws
 const errorMiddleWare = (err, req, res, next) => {
@@ -103,7 +114,11 @@ const errorMiddleWare = (err, req, res, next) => {
 };
 
 // configure app with router and error middleware
-const configureRouter = (app) => {
+const configureRouter = async (app) => {
+  await getAccessKeys();
+  setupS3Client();
+  setupMulter();
+  setupFilesRoutes();
   app.use(router);
   app.use(errorMiddleWare);
   return app;

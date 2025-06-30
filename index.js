@@ -18,9 +18,13 @@ const loggerMiddleWare = (req, res, next) => {
 app.use(loggerMiddleWare);
 
 //add router(s)
-const { configureRouter } = require("./files");
-app = configureRouter(app);
+const setupExpress = async () => {
+  const { configureRouter } = require("./files");
+  app = await configureRouter(app);
 
-app.listen(process.env.PORT || 80, () =>
-  console.log(`Listening on port ${process.env.PORT || 80}`)
-);
+  app.listen(process.env.PORT || 80, () =>
+    console.log(`Listening on port ${process.env.PORT || 80}`)
+  );
+};
+
+setupExpress();

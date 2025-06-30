@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon index.js",
-    "start-prod": "node index.js"
+    "start": "pm2 start --env development",
+    "start-prod": "pm2 start --env production",
+    "stop:all": "pm2 stop all"
   },
   "repository": {
     "type": "git",
@@ -32,6 +33,7 @@
     "multer": "^2.0.1",
     "multer-s3": "^3.0.1",
     "nodemon": "^3.1.10",
+    "pm2": "^6.0.8",
     "streamifier": "^0.1.1"
   }
 }

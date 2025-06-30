@@ -47,9 +47,6 @@ const getAccessKeys = async () => {
 
 // Using the fetched params to configure S3Client
 const setupS3Client = () => {
-  console.log("from-function:", aws_params);
-  console.log("from-process:", process.env.S3_ACCESS_KEY);
-
   s3Client = new S3Client({
     region: process.env.AWS_S3_REGION,
     credentials: {

@@ -2,7 +2,11 @@ const express = require("express");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const multer = require("multer");
 const multerS3 = require("multer-s3");
-const { SSMClient, GetParameterCommand } = require("@aws-sdk/client-ssm");
+const {
+  SSMClient,
+  GetParameterCommand,
+  GetParametersCommand,
+} = require("@aws-sdk/client-ssm");
 //const streamifier = require("streamifier");
 
 // setup router
@@ -46,11 +50,11 @@ router.get("/get-access-key-param", async (req, res) => {
   const ssmClient = new SSMClient({ region: "ap-south-1" });
 
   const params = {
-    Name: "S3_ACCESS_KEY",
+    Names: ["S3_ACCESS_KEY", "S3_SECRET_ACCESS_KEY"],
     WithDecryption: true,
   };
 
-  const command = new GetParameterCommand(params);
+  const command = new GetParametersCommand(params);
 
   const data = await ssmClient.send(command);
   res.send(data);

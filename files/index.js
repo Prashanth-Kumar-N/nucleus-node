@@ -1,5 +1,11 @@
 const express = require("express");
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const {
+  S3Client,
+  S3ServiceException,
+  paginateListObjectsV2,
+  GetObjectCommand,
+} = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const multer = require("multer");
 const multerS3 = require("multer-s3");
 const {
@@ -31,18 +37,26 @@ let upload = null;
 // https://ap-south-1.console.aws.amazon.com/systems-manager/parameters/?region=ap-south-1&tab=Table
 
 const getAccessKeys = async () => {
-  const ssmClient = new SSMClient({ region: "ap-south-1" });
-  const params = {
-    Names: ["S3_ACCESS_KEY", "S3_SECRET_ACCESS_KEY"],
-    WithDecryption: true,
-  };
-  const command = new GetParametersCommand(params);
-  const paramsData = await ssmClient.send(command);
-  paramsData.Parameters.forEach((param) => {
-    process.env[param.Name] = param.Value;
-    aws_params[param.Name] = param.Value;
-  });
-  return aws_params;
+  if (process.env.NODE_ENV === "development") {
+    return {
+      S3_ACCESS_KEY: process.env.S3_ACCESS_KEY,
+      S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
+    };
+  } else {
+    console.log("prod");
+    const ssmClient = new SSMClient({ region: "ap-south-1" });
+    const params = {
+      Names: ["S3_ACCESS_KEY", "S3_SECRET_ACCESS_KEY"],
+      WithDecryption: true,
+    };
+    const command = new GetParametersCommand(params);
+    const paramsData = await ssmClient.send(command);
+    paramsData.Parameters.forEach((param) => {
+      process.env[param.Name] = param.Value;
+      aws_params[param.Name] = param.Value;
+    });
+    return aws_params;
+  }
 };
 
 // Using the fetched params to configure S3Client
@@ -77,13 +91,9 @@ const setupMulter = () => {
 
 // add routes
 const setupFilesRoutes = () => {
-  router.get("/", (req, res) => {
-    res.send("Working!!!");
-  });
-
   // test route - getaccesskeyparam
   router.get("/get-access-key-param", async (req, res) => {
-    res.send(data);
+    res.send(aws_params);
   });
 
   //get max allowed file size
@@ -99,8 +109,76 @@ const setupFilesRoutes = () => {
 
     res.send(`Successfully uploaded ${req.files.length} files`);
   });
+
+  // get a presigned url for each file to download
+  const getSignedURLForObject = async (client, key) => {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKETNAME,
+        Key: key,
+      });
+      // URL expires in 1 hour.
+      const url = await getSignedUrl(client, command, { expiresIn: 3600 });
+      return url;
+    } catch (e) {
+      if (e instanceof Error && e.name === "CredentialsProviderError") {
+        console.error(
+          `There was an error getting your credentials. Are your local credentials configured?\n${e.name}: ${e.message}`
+        );
+      } else {
+        throw e;
+      }
+    }
+  };
+
+  router.get("/get-all-files", async (req, res) => {
+    //paginator config
+    const paginatorConfig = {
+      client: s3Client,
+      pageSize: 20,
+    };
+
+    // bucket config
+    const params = {
+      Bucket: process.env.AWS_S3_BUCKETNAME,
+      prefix: process.env.AWS_S3_FILES_FOLDER,
+    };
+
+    const objects = [];
+    try {
+      const paginatorData = paginateListObjectsV2(paginatorConfig, params);
+      for await (const page of paginatorData) {
+        objects.push(page.Contents);
+      }
+
+      //
+      const files = objects.find((bucket) =>
+        bucket[0].Key.includes(process.env.AWS_S3_FILES_FOLDER)
+      );
+
+      // add a presigned url to download which expires in 1 hour
+
+      for await (const file of files) {
+        file.URL = await getSignedURLForObject(s3Client, file.Key);
+        file.Name = file.Key.split("/")[1];
+      }
+
+      res.send(files);
+    } catch (e) {
+      if (e instanceof S3ServiceException && e.name === "NoSuchBucket") {
+        console.error(
+          `Error from S3 while listing objects for "${process.env.AWS_S3_BUCKETNAME}". The bucket doesn't exist.`
+        );
+      } else if (e instanceof S3ServiceException) {
+        console.error(
+          `Error from S3 while listing objects for "${process.env.AWS_S3_BUCKETNAME}".  ${e.name}: ${e.message}`
+        );
+      } else {
+        throw e;
+      }
+    }
+  });
 };
-//test-route
 
 //setup error middleware which will catch all the errors middlware throws
 const errorMiddleWare = (err, req, res, next) => {

@@ -23,7 +23,7 @@ const setupExpress = async () => {
   app = await configureRouter(app);
 
   app.listen(process.env.PORT || 443, () =>
-    console.log(`Listening on port ${process.env.PORT || 443}, process.env.PORT`)
+    console.log(`Listening on port ${process.env.PORT || 443}, ${process.env.PORT}`)
   );
 };
 

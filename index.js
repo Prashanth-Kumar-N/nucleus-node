@@ -22,8 +22,8 @@ const setupExpress = async () => {
   const { configureRouter } = require("./files");
   app = await configureRouter(app);
 
-  app.listen(process.env.PORT || 80, () =>
-    console.log(`Listening on port ${process.env.PORT || 80}`)
+  app.listen(process.env.PORT || 443, () =>
+    console.log(`Listening on port ${process.env.PORT || 443}`)
   );
 };
 

@@ -9,7 +9,7 @@ module.exports = {
         AWS_S3_BUCKETNAME: "sunny-nucleus",
         AWS_S3_FILES_FOLDER: "Files",
         MAX_FILE_SIZE: 200,
-        PORT: 80,
+        PORT: 443,
         FILES_PRESIGNED_URL_EXPIRY: 3600,
       },
       env_development: {

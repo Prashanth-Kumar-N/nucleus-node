@@ -4,6 +4,7 @@ const {
   S3ServiceException,
   paginateListObjectsV2,
   GetObjectCommand,
+  DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const multer = require("multer");
@@ -92,23 +93,27 @@ const setupMulter = () => {
 // add routes
 const setupFilesRoutes = () => {
   // test route - getaccesskeyparam
-  router.get("/get-access-key-param", async (req, res) => {
+  /* router.get("/get-access-key-param", async (req, res) => {
     res.send(aws_params);
-  });
+  }); */
 
   //get max allowed file size
-  router.get("/max-file-size", (req, res) => {
+  router.get("/files/max-file-size", (req, res) => {
     res.send(process.env.MAX_FILE_SIZE || null);
   });
 
   // upload files to s3
-  router.post("/upload-file", upload.array("file", 5), async (req, res) => {
-    // multer is setup with sulter-s3 as middelware which takes care of the uploading in its function call. Nothing to do here
-    // This function is only called on success,
-    // Error is called through an error middleware we  setup below
+  router.post(
+    "/files/upload-file",
+    upload.array("file", 5),
+    async (req, res) => {
+      // multer is setup with sulter-s3 as middelware which takes care of the uploading in its function call. Nothing to do here
+      // This function is only called on success,
+      // Error is called through an error middleware we  setup below
 
-    res.send(`Successfully uploaded ${req.files.length} files`);
-  });
+      res.send(`Successfully uploaded ${req.files.length} files`);
+    }
+  );
 
   // get a presigned url for each file to download
   const getSignedURLForObject = async (client, key) => {
@@ -131,11 +136,11 @@ const setupFilesRoutes = () => {
     }
   };
 
-  router.get("/get-all-files", async (req, res) => {
+  router.get("/files/get-all-files", async (req, res) => {
     //paginator config
     const paginatorConfig = {
       client: s3Client,
-      pageSize: 20,
+      pageSize: 50,
     };
 
     // bucket config
@@ -175,6 +180,33 @@ const setupFilesRoutes = () => {
         );
       } else {
         throw e;
+      }
+    }
+  });
+
+  // delete a file from s3
+  router.delete("/files/delete-file/:fileName", async (req, res) => {
+    const fileName = req.params.fileName;
+    if (!fileName) {
+      return res.status(400).send("File name is required");
+    }
+
+    const deleteParams = {
+      Bucket: process.env.AWS_S3_BUCKETNAME,
+      Key: `${process.env.AWS_S3_FILES_FOLDER}/${fileName}`,
+    };
+
+    const deleteCommand = new DeleteObjectCommand(deleteParams);
+
+    try {
+      const response = await s3Client.send(deleteCommand);
+      res.send(response);
+    } catch (e) {
+      if (e instanceof S3ServiceException && e.name === "NoSuchKey") {
+        return res.status(404).send("File not found");
+      } else {
+        console.error(`Error deleting file: ${e.name}: ${e.message}`);
+        return res.status(500).send("Error deleting file");
       }
     }
   });

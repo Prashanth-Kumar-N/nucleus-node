@@ -250,7 +250,10 @@ const setupFilesRoutes = () => {
         const deleteCommand = new DeleteObjectCommand(deleteParams);
         try {
           const deleteResponse = await s3Client.send(deleteCommand);
-          if (deleteResponse.$metadata.httpStatusCode === 200) {
+          if (
+            deleteResponse.$metadata.httpStatusCode === 204 ||
+            deleteResponse.$metadata.httpStatusCode === 200
+          ) {
             res.status(200).send("Rename successful!!");
           }
         } catch (e) {

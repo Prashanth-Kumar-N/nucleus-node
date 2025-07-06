@@ -234,20 +234,13 @@ const setupFilesRoutes = () => {
     }
 
     // get rename command to send to s3
-    console.log(
-      "========",
-      process.env.S3_ACCESS_KEY,
-      process.env.S3_SECRET_ACCESS_KEY
-    );
     const copyCommand = new CopyObjectCommand({
       Bucket: process.env.AWS_S3_BUCKETNAME,
-      Key: `${process.env.AWS_S3_FILES_FOLDER}/${oldName}`,
-      CopySource: `${process.env.AWS_S3_FILES_FOLDER}/${newName}`,
+      Key: `${process.env.AWS_S3_FILES_FOLDER}/${newName}`,
+      CopySource: `${process.env.AWS_S3_BUCKETNAME}/${process.env.AWS_S3_FILES_FOLDER}/${oldName}`,
     });
-
     try {
       const copyResponse = await s3Client.send(copyCommand);
-      console.log(copyResponse);
       if (copyResponse.$metadata.httpStatusCode === 200) {
         const deleteParams = {
           Bucket: process.env.AWS_S3_BUCKETNAME,
@@ -267,19 +260,6 @@ const setupFilesRoutes = () => {
         throw new ResponseError("Error renaming file--");
       }
     } catch (e) {
-      /* try {
-      const renameCommand = new RenameObjectCommand({
-        Bucket: process.env.AWS_S3_BUCKETNAME,
-        Key: `${process.env.AWS_S3_FILES_FOLDER}/${oldName}`,
-        RenameSource: `${process.env.AWS_S3_FILES_FOLDER}/${newName}`,
-      });
-      const response = await s3Client.send(renameCommand);
-      if (response.$metadata.httpStatusCode === 200) {
-        res.status(200).send("Rename successful!!");
-      } else {
-        throw new Error("Action unsuccessful");
-      } 
-    } */
       console.log(e);
       if (e instanceof S3ServiceException && e.name === "NoSuchKey") {
         return res.status(404).send("File not found");
@@ -364,5 +344,23 @@ module.exports = { configureRouter };
     console.error(e);
     res.status(500).send("Error uploading file");
   }
+
+
+  // Renam file using RenamCommandObject
+  DIDN'T WORK, because it only applied for OneZone Storage class
+  // got back a response saying 'Not Implemented'
+  try {
+      const renameCommand = new RenameObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKETNAME,
+        Key: `${process.env.AWS_S3_FILES_FOLDER}/${newName}`,
+        RenameSource: `${process.env.AWS_S3_FILES_FOLDER}/${oldName}`,
+      });
+      const response = await s3Client.send(renameCommand);
+      if (response.$metadata.httpStatusCode === 200) {
+        res.status(200).send("Rename successful!!");
+      } else {
+        throw new Error("Action unsuccessful");
+      }
+    } 
 
  */

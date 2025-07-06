@@ -7,6 +7,9 @@ dotenv.config({ path: `.env.${process.NODE_ENV || "development"}` });
 // setup express app
 let app = express();
 
+// parse req, res to json
+app.use(express.json());
+
 // enable cors
 app.use(cors());
 
@@ -23,7 +26,7 @@ const setupExpress = async () => {
   app = await configureRouter(app);
 
   app.listen(process.env.PORT || 443, () =>
-    console.log(`Listening on port ${process.env.PORT || 443}, ${process.env.PORT}`)
+    console.log(`Listening on port ${process.env.PORT || 443}`)
   );
 };
 

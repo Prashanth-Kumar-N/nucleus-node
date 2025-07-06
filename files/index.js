@@ -5,6 +5,8 @@ const {
   paginateListObjectsV2,
   GetObjectCommand,
   DeleteObjectCommand,
+  CopyObjectCommand,
+  RenameObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const multer = require("multer");
@@ -207,6 +209,83 @@ const setupFilesRoutes = () => {
       } else {
         console.error(`Error deleting file: ${e.name}: ${e.message}`);
         return res.status(500).send("Error deleting file");
+      }
+    }
+  });
+
+  /**
+   * @request body
+   * {
+   *  oldName: "oldFileName.txt",
+   * newName: "newFileName.txt"
+   * }
+   */
+  //rename a file in s3
+  router.post("/files/rename-file", async (req, res) => {
+    const { oldName, newName } = req.body;
+
+    // validate request body
+    if (!oldName || !newName) {
+      return res.status(400).send("Both oldName and newName are required");
+    }
+    // check if oldName and newName are same
+    if (oldName === newName) {
+      return res.status(400).send("Old name and new name cannot be the same");
+    }
+
+    // get rename command to send to s3
+    console.log(
+      "========",
+      process.env.S3_ACCESS_KEY,
+      process.env.S3_SECRET_ACCESS_KEY
+    );
+    const copyCommand = new CopyObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKETNAME,
+      Key: `${process.env.AWS_S3_FILES_FOLDER}/${oldName}`,
+      CopySource: `${process.env.AWS_S3_FILES_FOLDER}/${newName}`,
+    });
+
+    try {
+      const copyResponse = await s3Client.send(copyCommand);
+      console.log(copyResponse);
+      if (copyResponse.$metadata.httpStatusCode === 200) {
+        const deleteParams = {
+          Bucket: process.env.AWS_S3_BUCKETNAME,
+          Key: `${process.env.AWS_S3_FILES_FOLDER}/${oldName}`,
+        };
+
+        const deleteCommand = new DeleteObjectCommand(deleteParams);
+        try {
+          const deleteResponse = await s3Client.send(deleteCommand);
+          if (deleteResponse.$metadata.httpStatusCode === 200) {
+            res.status(200).send("Rename successful!!");
+          }
+        } catch (e) {
+          throw e;
+        }
+      } else {
+        throw new ResponseError("Error renaming file--");
+      }
+    } catch (e) {
+      /* try {
+      const renameCommand = new RenameObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKETNAME,
+        Key: `${process.env.AWS_S3_FILES_FOLDER}/${oldName}`,
+        RenameSource: `${process.env.AWS_S3_FILES_FOLDER}/${newName}`,
+      });
+      const response = await s3Client.send(renameCommand);
+      if (response.$metadata.httpStatusCode === 200) {
+        res.status(200).send("Rename successful!!");
+      } else {
+        throw new Error("Action unsuccessful");
+      } 
+    } */
+      console.log(e);
+      if (e instanceof S3ServiceException && e.name === "NoSuchKey") {
+        return res.status(404).send("File not found");
+      } else {
+        console.log(`Error renaming file: ${e.name}: ${e.message}`);
+        return res.status(500).send("Error renaming file");
       }
     }
   });

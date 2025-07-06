@@ -9,7 +9,10 @@
     "start-prod": "pm2 start --env production",
     "deploy-restart": "npm i && pm2 restart nucleus-server",
     "nodemon-start": "nodemon index.js",
-    "stop:all": "pm2 stop all"
+    "stop:all": "pm2 stop all",
+    "restart": "pm2 restart nucleus-server",
+    "logs":"pm2 logs",
+    "flush": "pm2 flush nucleus-server"
   },
   "repository": {
     "type": "git",

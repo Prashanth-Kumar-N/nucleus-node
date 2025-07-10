@@ -241,6 +241,10 @@ const setupFilesRoutes = () => {
     });
     try {
       const copyResponse = await s3Client.send(copyCommand);
+      console.log(
+        "----------------------------------",
+        copyResponse.$metadata.httpStatusCode
+      );
       if (copyResponse.$metadata.httpStatusCode === 200) {
         const deleteParams = {
           Bucket: process.env.AWS_S3_BUCKETNAME,
@@ -250,6 +254,10 @@ const setupFilesRoutes = () => {
         const deleteCommand = new DeleteObjectCommand(deleteParams);
         try {
           const deleteResponse = await s3Client.send(deleteCommand);
+          console.log(
+            "----------------------------------",
+            deleteResponse.$metadata.httpStatusCode
+          );
           if (
             deleteResponse.$metadata.httpStatusCode === 204 ||
             deleteResponse.$metadata.httpStatusCode === 200
